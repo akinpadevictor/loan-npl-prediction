@@ -1,0 +1,173 @@
+STEP 26 — Create an NPL risk dashboard
+
+This is where Power BI comes in.
+
+Your dashboard can contain:
+
+Portfolio KPIs
+Total Loans
+Total Loan Value
+NPL Loans
+NPL Rate
+High Risk Loans
+High Risk Loan Value
+Visuals
+
+NPL by Loan Type
+
+NPL by State
+
+NPL by Agent
+
+NPL by Team Lead
+
+NPL by Order Source
+
+NPL trend over time
+
+Risk distribution
+
+Low Risk
+Medium Risk
+High Risk
+STEP 27 — Create a High-Risk Loan table
+
+This is potentially one of the most valuable outputs.
+
+Power BI table:
+
+Customer	Loan Amount	Loan Type	State	NPL Probability	Risk
+Customer A	₦10M	BNPL	Lagos	91%	High
+Customer B	₦7M	Paylater	Oyo	86%	High
+Customer C	₦4M	BNPL	Kano	81%	High
+
+Now management can actually take action.
+
+STEP 28 — Build the Streamlit application
+
+Once the model is working, we can save it:
+
+import joblib
+
+joblib.dump(
+    best_model,
+    "models/npl_model.pkl"
+)
+
+Then create:
+
+app.py
+
+The user enters loan information:
+
+Loan Amount
+Loan Type
+State
+Order Source
+Interest Rate
+etc.
+
+Then:
+
+Predict NPL Risk
+
+And the application returns:
+
+NPL Probability: 82.4%
+
+Risk Level:
+HIGH
+STEP 29 — Add explainability
+
+This is where we can make the project significantly better.
+
+Instead of only saying:
+
+High Risk: 82%
+
+we want:
+
+Why?
+
+We can eventually use SHAP to explain the prediction.
+
+For example:
+
+Top factors increasing risk:
+
+↑ High loan amount
+↑ Certain loan type
+↑ Higher interest burden
+↑ Certain order source
+↑ Certain market
+
+This turns your project into something closer to a real-world credit risk analytics solution.
+
+STEP 30 — Your final project architecture
+
+Ultimately, your portfolio project will be:
+
+             LOAN CUSTOMER DATA
+                     │
+                     ▼
+              DATA EXPLORATION
+                     │
+                     ▼
+               DATA CLEANING
+                     │
+                     ▼
+             FEATURE ENGINEERING
+                     │
+                     ▼
+            NPL TARGET CREATION
+                     │
+                     ▼
+             LEAKAGE PREVENTION
+                     │
+                     ▼
+              MODEL TRAINING
+                     │
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+       Logistic   Random     XGBoost
+       Regression Forest
+          └──────────┼──────────┘
+                     ▼
+             MODEL EVALUATION
+                     │
+                     ▼
+            BEST MODEL SELECTED
+                     │
+                     ▼
+             NPL PROBABILITY
+                     │
+                     ▼
+             RISK SEGMENTATION
+                     │
+          ┌──────────┴──────────┐
+          ▼                     ▼
+      POWER BI              STREAMLIT
+      DASHBOARD              APP
+One important improvement before we train
+
+There is a major methodological issue I want us to solve before the model is finalized.
+
+Your data spans June 21, 2023 through September 7, 2026, and the dataset contains both loan dates and repayment/outcome information. A proper production model should ideally answer:
+
+"Using information available at or shortly after loan origination, can we predict whether this loan will eventually become NPL?"
+
+rather than:
+
+"Using the current state of the loan, can we identify loans that are already NPL?"
+
+Those are completely different ML problems.
+
+If we do this correctly, you'll be able to put on your CV/portfolio something much stronger than "built a loan default model."
+
+You can say:
+
+Built an end-to-end machine learning credit-risk solution using 65K+ loan records to predict NPL risk, incorporating data cleaning, feature engineering, class-imbalance handling, model evaluation, probability-based risk scoring, and Power BI visualization.
+
+Let's do this as an actual project, not just theory.
+
+Our next step should be Step 1 in the notebook: complete EDA on your exact dataset. We'll inspect the distributions, missing values, NPL rates, loan types, states, dates, amounts, and relationships with the NPL target. Then we'll decide exactly which columns are safe to feed into the model before writing the training code.

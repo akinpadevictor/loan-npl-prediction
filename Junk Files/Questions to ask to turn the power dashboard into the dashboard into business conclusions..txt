@@ -1,0 +1,15 @@
+What you will analyze
+
+You will answer questions such as:
+
+What percentage of loans are NPLs?
+Which loan types have the highest NPL rate?
+Which states have the highest NPL rates?
+Which agents have the highest NPL exposure?
+Which team leads have the highest NPL exposure?
+Which order sources produce the most NPLs?
+Which loan amount ranges have the greatest NPL risk?
+How does NPL change over time?
+How many loans are classified as High Risk by the model?
+What is the total value of high-risk loans?
+Where should management prioritize intervention?

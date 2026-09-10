@@ -1,0 +1,26 @@
+data/
+*.xlsx
+*.xls
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+.ipynb_checkpoints/
+
+.env
+.venv/
+venv/
+env/
+.streamlit/secrets.toml
+
+.DS_Store
+Thumbs.db
+
+*.zip
+
+outputs/npl_risk_dashboard_100_percent.csv
+notebooks/npl_risk_dashboard.csv
+notebooks/npl_risk_dashboard_100_percent.csv
+Junk Files/*.csv

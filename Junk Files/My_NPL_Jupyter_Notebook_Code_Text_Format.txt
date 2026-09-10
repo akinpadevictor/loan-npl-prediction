@@ -1,0 +1,397 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+
+from sklearn.impute import SimpleImputer
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+
+from sklearn.metrics import (
+    classification_report,
+    confusion_matrix,
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    roc_curve
+)
+
+import warnings
+warnings.filterwarnings("ignore")
+
+# Load the Data
+
+df = pd.read_excel(r"C:\Users\Ule Chinyere\Videos\Data Science\Generative AI\Real World Gen AI Projects\Loan_NPL_Prediction\data\Loan Information_Data.xlsx")
+
+df.columns.tolist()
+
+df["Loan Class"].value_counts()
+df["NPL"] = df["Loan Class"].isin(
+    ["Bad Loan", "NP Loan"]
+).astype(int)
+df["NPL"].value_counts()
+id_columns = [
+    "REF",
+    "Name",
+    "Phone",
+    "Address",
+    "LOANID",
+    "ORDERID"
+]
+leakage_columns = [
+    "Loan Class",
+    "Loan Status",
+    "Loan Aging",
+    "Loan Aging Bucket",
+    "Total Amount Recovered",
+    "Total Amount Pending",
+    "__Last_repayment_date",
+    "__First_repayment_date",
+    "ACCRUALSTATUS"
+]
+features_to_drop = id_columns + leakage_columns
+
+X = df.drop(
+    columns=features_to_drop + ["NPL"],
+    errors="ignore"
+)
+
+y = df["NPL"]
+X.shape
+X.columns.tolist()
+df["Interest_Rate"] = (
+    df["Total Interest Charged"] /
+    df["LOANAMOUNT"]
+)
+
+df["Interest_Rate"] = df["Interest_Rate"].replace(
+    [np.inf, -np.inf],
+    np.nan
+)
+
+df["Loan_Month"] = df["LOANDATE"].dt.month
+df["Loan_Year"] = df["LOANDATE"].dt.year
+df["Loan_DayOfWeek"] = df["LOANDATE"].dt.dayofweek
+sns.countplot(x="NPL", data=df)
+
+plt.title("NPL Distribution")
+plt.xlabel("NPL Status")
+plt.ylabel("Number of Loans")
+
+plt.show()
+pd.crosstab(
+    df["LOANTYPE"],
+    df["NPL"],
+    normalize="index"
+) * 100
+# Analyze NPL by loan type
+# NPL risk varies significantly across loan types and geographic markets.
+npl_by_type = (
+    df.groupby("LOANTYPE")["NPL"]
+    .mean()
+    .sort_values(ascending=False)
+    * 100
+)
+
+print(npl_by_type)
+#Analyze NPL by state
+#NPL risk varies significantly across loan types and geographic markets.
+npl_by_state = (
+    df.groupby("State Name")["NPL"]
+    .mean()
+    .sort_values(ascending=False)
+    * 100
+)
+
+print(npl_by_state.head(20))
+df["Loan_Amount_Band"] = pd.cut(
+    df["LOANAMOUNT"],
+    bins=[
+        0,
+        1_000_000,
+        5_000_000,
+        10_000_000,
+        50_000_000,
+        np.inf
+    ],
+    labels=[
+        "<1M",
+        "1M-5M",
+        "5M-10M",
+        "10M-50M",
+        "50M+"
+    ]
+)
+df.groupby("Loan_Amount_Band")["NPL"].mean() * 100
+#Prepare X and y
+X = df.drop(
+    columns=features_to_drop + ["NPL"],
+    errors="ignore"
+)
+
+y = df["NPL"]
+#We then identify numeric and categorical variables
+numeric_features = X.select_dtypes(
+    include=["int64", "float64"]
+).columns
+
+categorical_features = X.select_dtypes(
+    include=["object", "category"]
+).columns
+#Handle missing values
+#For numerical columns
+
+numeric_transformer = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="median"))
+    ]
+)
+#Handle missing values
+#For categorical columns
+
+categorical_transformer = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OneHotEncoder(
+            handle_unknown="ignore"
+        ))
+    ]
+)
+# Then combine them
+preprocessor = ColumnTransformer(
+    transformers=[
+        (
+            "num",
+            numeric_transformer,
+            numeric_features
+        ),
+        (
+            "cat",
+            categorical_transformer,
+            categorical_features
+        )
+    ]
+)
+#Split the data
+preprocessor = ColumnTransformer(
+    transformers=[
+        (
+            "num",
+            numeric_transformer,
+            numeric_features
+        ),
+        (
+            "cat",
+            categorical_transformer,
+            categorical_features
+        )
+    ]
+)
+# Why stratify=y?
+
+#Because NPL is rare.
+
+#We want approximately the same proportion of NPL loans in the training and testing sets.
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42,
+    stratify=y
+)
+
+logistic_model = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        (
+            "model",
+            LogisticRegression(
+                max_iter=1000,
+                class_weight="balanced"
+            )
+        )
+    ]
+)
+
+logistic_model.fit(
+    X_train,
+    y_train
+)
+
+y_pred = logistic_model.predict(X_test)
+
+y_probability = logistic_model.predict_proba(
+    X_test
+)[:, 1]
+
+print(
+    classification_report(
+        y_test,
+        y_pred
+    )
+)
+
+print(
+    "ROC-AUC:",
+    roc_auc_score(
+        y_test,
+        y_probability
+    )
+)
+
+
+
+cm = confusion_matrix(
+    y_test,
+    y_pred
+)
+
+sns.heatmap(
+    cm,
+    annot=True,
+    fmt="d"
+)
+
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+
+plt.show()
+
+random_forest_model = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        (
+            "model",
+            RandomForestClassifier(
+                n_estimators=300,
+                random_state=42,
+                class_weight="balanced",
+                n_jobs=-1
+            )
+        )
+    ]
+)
+
+random_forest_model.fit(
+    X_train,
+    y_train
+)
+
+
+
+rf_pred = random_forest_model.predict(X_test)
+
+rf_probability = random_forest_model.predict_proba(
+    X_test
+)[:, 1]
+
+
+print(
+    classification_report(
+        y_test,
+        rf_pred
+    )
+)
+
+print(
+    "ROC-AUC:",
+    roc_auc_score(
+        y_test,
+        rf_probability
+    )
+)
+
+import pandas as pd
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
+
+# 1. Generate predictions for Logistic Regression
+# (Replace 'log_reg_model' with your actual trained Logistic Regression variable)
+y_pred_lr = logistic_model.predict(X_test)
+y_proba_lr = logistic_model.predict_proba(X_test)[:, 1]
+
+# 2. Generate predictions for Random Forest
+# (Replace 'rf_model' with your actual trained Random Forest variable)
+y_pred_rf = random_forest_model.predict(X_test)
+y_proba_rf = random_forest_model.predict_proba(X_test)[:, 1]
+
+# 3. Calculate metrics
+metrics_data = {
+    "Model": ["Logistic Regression", "Random Forest"],
+    "Precision": [
+        precision_score(y_test, y_pred_lr),
+        precision_score(y_test, y_pred_rf)
+    ],
+    "Recall": [
+        recall_score(y_test, y_pred_lr),
+        recall_score(y_test, y_pred_rf)
+    ],
+    "F1": [
+        f1_score(y_test, y_pred_lr),
+        f1_score(y_test, y_pred_rf)
+    ],
+    "ROC-AUC": [
+        roc_auc_score(y_test, y_proba_lr),
+        roc_auc_score(y_test, y_proba_rf)
+    ]
+}
+
+# 4. Create and display the DataFrame
+comparison_df = pd.DataFrame(metrics_data)
+# Optional: Round the numbers to 4 decimal places for clean formatting
+print(comparison_df.round(4).to_string(index=False))
+
+
+#Generate an actual risk score - Step 1
+risk_probability = random_forest_model.predict_proba(X)[:, 1]
+
+#Generate an actual risk score - Step 2
+df["NPL_Probability"] = risk_probability
+
+#Generate an actual risk score - Step 3
+df["Risk_Category"] = pd.cut(
+    df["NPL_Probability"],
+    bins=[0, 0.30, 0.60, 1],
+    labels=[
+        "Low Risk",
+        "Medium Risk",
+        "High Risk"
+    ]
+)
+
+#Now your data can look like:
+# | Loan | NPL Probability | Risk   |
+# | ---- | --------------: | ------ |
+# | A    |            0.08 | Low    |
+# | B    |            0.47 | Medium |
+# | C    |            0.83 | High   |
+
+
+
+#Export your final model results
+final_data = X_test.copy()
+
+final_data["NPL_Probability"] = y_probability
+final_data["Predicted_NPL"] = rf_pred
+
+
+final_data["Risk_Level"] = final_data["NPL_Probability"].apply(
+    lambda x: "High Risk" if x >= 0.70
+    else "Medium Risk" if x >= 0.40
+    else "Low Risk"
+)
+
+
+final_data.to_csv(
+    r"C:\Users\Ule Chinyere\Videos\Data Science\Generative AI\Real World Gen AI Projects\Loan_NPL_Prediction\notebooks\npl_risk_dashboard.csv",
+    index=False
+)
